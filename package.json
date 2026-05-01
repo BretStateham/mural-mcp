@@ -1,0 +1,36 @@
+{
+  "name": "mural-mcp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build/index.js",
+  "bin": {
+    "mural-mcp": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node build/index.js",
+    "auth": "node build/auth/cli-auth.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BretStateham/mural-mcp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/BretStateham/mural-mcp/issues"
+  },
+  "homepage": "https://github.com/BretStateham/mural-mcp#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

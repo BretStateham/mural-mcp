@@ -21,12 +21,15 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 
 const SCOPES = "murals:read murals:write";
 
+const state = Math.random().toString(36).substring(2, 15);
+
 const authUrl =
-  `https://app.mural.co/api/public/v1/authorization/oauth2/authorize` +
+  `https://app.mural.co/api/public/v1/authorization/oauth2/` +
   `?client_id=${CLIENT_ID}` +
   `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
   `&response_type=code` +
-  `&scope=${encodeURIComponent(SCOPES)}`;
+  `&scope=${encodeURIComponent(SCOPES)}` +
+  `&state=${state}`;
 
 console.log("\nOpening browser for Mural authorization...\n");
 console.log(`If the browser doesn't open, visit:\n${authUrl}\n`);

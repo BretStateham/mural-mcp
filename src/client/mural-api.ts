@@ -58,14 +58,16 @@ export async function getMural(muralId: string): Promise<Mural> {
 
 export async function getWidgets(muralId: string): Promise<MuralWidget[]> {
   const allWidgets: MuralWidget[] = [];
-  let nextPath: string | undefined = `/murals/${muralId}/widgets`;
+  const basePath = `/murals/${muralId}/widgets`;
+  let cursor: string | undefined;
 
-  while (nextPath) {
+  do {
+    const path = cursor ? `${basePath}?next=${encodeURIComponent(cursor)}` : basePath;
     const data: { value: MuralWidget[]; next?: string } =
-      await apiRequest<{ value: MuralWidget[]; next?: string }>(nextPath);
+      await apiRequest<{ value: MuralWidget[]; next?: string }>(path);
     allWidgets.push(...data.value);
-    nextPath = data.next;
-  }
+    cursor = data.next;
+  } while (cursor);
 
   return allWidgets;
 }

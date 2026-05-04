@@ -9,7 +9,7 @@ export function registerWidgetWriteTools(server: McpServer): void {
     "Create a sticky note on a mural. Use parentId to place inside an area with relative coordinates. If autoPlace is true, finds a non-overlapping position automatically.",
     {
       muralId: z.string().describe("Mural ID"),
-      text: z.string().describe("Sticky note text content"),
+      text: z.string().describe("Sticky note text content (plain text, no HTML tags)"),
       x: z.number().optional().describe("X position (absolute, or relative if parentId is set)"),
       y: z.number().optional().describe("Y position (absolute, or relative if parentId is set)"),
       parentId: z.string().optional().describe("Parent area widget ID — coordinates become relative to this area"),

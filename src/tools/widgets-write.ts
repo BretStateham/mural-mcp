@@ -9,7 +9,8 @@ export function registerWidgetWriteTools(server: McpServer): void {
     "Create a sticky note on a mural. Use parentId to place inside an area with relative coordinates. If autoPlace is true, finds a non-overlapping position automatically.",
     {
       muralId: z.string().describe("Mural ID"),
-      text: z.string().describe("Sticky note text content (plain text, no HTML tags)"),
+      text: z.string().describe("Plain text content. Ignored if htmlText is provided."),
+      htmlText: z.string().optional().describe('Rich text using Mural HTML format. Example: <html v="1"><div><b><span>Bold</span></b><span> normal</span></div></html>. Supports <b>, <i>, <u>, <strike>, <span>.'),
       x: z.number().optional().describe("X position (absolute, or relative if parentId is set)"),
       y: z.number().optional().describe("Y position (absolute, or relative if parentId is set)"),
       parentId: z.string().optional().describe("Parent area widget ID — coordinates become relative to this area"),
@@ -19,7 +20,7 @@ export function registerWidgetWriteTools(server: McpServer): void {
       color: z.string().optional().describe("Background color hex (e.g. #FF69B4FF). Set via PATCH after creation."),
       autoPlace: z.boolean().optional().default(false).describe("Auto-find a non-overlapping position"),
     },
-    async ({ muralId, text, x, y, parentId, width, height, shape, color, autoPlace }) => {
+    async ({ muralId, text, htmlText, x, y, parentId, width, height, shape, color, autoPlace }) => {
       let posX = x ?? 0;
       let posY = y ?? 0;
 
@@ -43,10 +44,12 @@ export function registerWidgetWriteTools(server: McpServer): void {
 
       const created = await api.createWidget(muralId, "sticky-note", widget);
 
-      if (color) {
-        await api.updateWidget(muralId, "sticky-note", created.id, {
-          style: { backgroundColor: color },
-        });
+      // Apply htmlText and/or color via PATCH (not settable on creation)
+      const patch: Record<string, unknown> = {};
+      if (htmlText) patch["htmlText"] = htmlText;
+      if (color) patch["style"] = { backgroundColor: color };
+      if (Object.keys(patch).length > 0) {
+        await api.updateWidget(muralId, "sticky-note", created.id, patch);
       }
 
       return {
@@ -135,7 +138,8 @@ export function registerWidgetWriteTools(server: McpServer): void {
       y: z.number().optional().describe("New Y position"),
       width: z.number().optional().describe("New width"),
       height: z.number().optional().describe("New height"),
-      text: z.string().optional().describe("New text content"),
+      text: z.string().optional().describe("New plain text content"),
+      htmlText: z.string().optional().describe('Rich text in Mural HTML format. Example: <html v="1"><div><b><span>Bold</span></b><span> normal</span></div></html>'),
       backgroundColor: z.string().optional().describe("Background color hex (e.g. #FF69B4FF)"),
     },
     async ({ muralId, widgetId, widgetType, backgroundColor, ...updates }) => {

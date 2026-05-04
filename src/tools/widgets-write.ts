@@ -19,8 +19,9 @@ export function registerWidgetWriteTools(server: McpServer): void {
       shape: z.enum(["rectangle", "circle"]).optional().default("rectangle").describe("Sticky note shape"),
       color: z.string().optional().describe("Background color hex (e.g. #FF69B4FF). Set via PATCH after creation."),
       autoPlace: z.boolean().optional().default(false).describe("Auto-find a non-overlapping position"),
+      tag: z.string().optional().default("MCP").describe('Tag to apply to the widget (default: "MCP"). Set to empty string "" to skip tagging.'),
     },
-    async ({ muralId, text, htmlText, x, y, parentId, width, height, shape, color, autoPlace }) => {
+    async ({ muralId, text, htmlText, x, y, parentId, width, height, shape, color, autoPlace, tag }) => {
       let posX = x ?? 0;
       let posY = y ?? 0;
 
@@ -44,16 +45,19 @@ export function registerWidgetWriteTools(server: McpServer): void {
 
       const created = await api.createWidget(muralId, "sticky-note", widget);
 
-      // Apply htmlText, color, and MCP tag via PATCH (not settable on creation)
+      // Apply htmlText, color, and tag via PATCH (not settable on creation)
       const patch: Record<string, unknown> = {};
       if (htmlText) patch["htmlText"] = htmlText;
       if (color) patch["style"] = { backgroundColor: color };
 
-      // Auto-tag with "MCP" to identify widgets created via this server
-      const tagId = await api.ensureTag(muralId, "MCP");
-      patch["tags"] = [tagId];
+      if (tag) {
+        const tagId = await api.ensureTag(muralId, tag);
+        patch["tags"] = [tagId];
+      }
 
-      await api.updateWidget(muralId, "sticky-note", created.id, patch);
+      if (Object.keys(patch).length > 0) {
+        await api.updateWidget(muralId, "sticky-note", created.id, patch);
+      }
 
       return {
         content: [
@@ -87,8 +91,9 @@ export function registerWidgetWriteTools(server: McpServer): void {
       height: z.number().optional().default(200).describe("Height"),
       text: z.string().optional().describe("Text inside shape"),
       color: z.string().optional().describe("Background color hex"),
+      tag: z.string().optional().default("MCP").describe('Tag to apply to the widget (default: "MCP"). Set to empty string "" to skip tagging.'),
     },
-    async ({ muralId, shape, x, y, parentId, width, height, text, color }) => {
+    async ({ muralId, shape, x, y, parentId, width, height, text, color, tag }) => {
       const widget: Record<string, unknown> = {
         shape,
         x,
@@ -101,6 +106,12 @@ export function registerWidgetWriteTools(server: McpServer): void {
       if (color) widget["style"] = { backgroundColor: color };
 
       const created = await api.createWidget(muralId, "shape", widget);
+
+      if (tag) {
+        const tagId = await api.ensureTag(muralId, tag);
+        await api.updateWidget(muralId, "shape", created.id, { tags: [tagId] });
+      }
+
       return {
         content: [{ type: "text", text: JSON.stringify({ id: created.id, shape, x, y, parentId: parentId ?? null }) }],
       };
@@ -118,12 +129,19 @@ export function registerWidgetWriteTools(server: McpServer): void {
       parentId: z.string().optional().describe("Parent area widget ID — coordinates become relative to this area"),
       width: z.number().optional().default(300).describe("Width"),
       height: z.number().optional().default(100).describe("Height"),
+      tag: z.string().optional().default("MCP").describe('Tag to apply to the widget (default: "MCP"). Set to empty string "" to skip tagging.'),
     },
-    async ({ muralId, text, x, y, parentId, width, height }) => {
+    async ({ muralId, text, x, y, parentId, width, height, tag }) => {
       const widget: Record<string, unknown> = { text, x, y, width, height };
       if (parentId) widget["parentId"] = parentId;
 
       const created = await api.createWidget(muralId, "text", widget);
+
+      if (tag) {
+        const tagId = await api.ensureTag(muralId, tag);
+        await api.updateWidget(muralId, "text", created.id, { tags: [tagId] });
+      }
+
       return {
         content: [{ type: "text", text: JSON.stringify({ id: created.id, x, y, text, parentId: parentId ?? null }) }],
       };

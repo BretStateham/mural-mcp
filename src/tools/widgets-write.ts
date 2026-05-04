@@ -44,13 +44,16 @@ export function registerWidgetWriteTools(server: McpServer): void {
 
       const created = await api.createWidget(muralId, "sticky-note", widget);
 
-      // Apply htmlText and/or color via PATCH (not settable on creation)
+      // Apply htmlText, color, and MCP tag via PATCH (not settable on creation)
       const patch: Record<string, unknown> = {};
       if (htmlText) patch["htmlText"] = htmlText;
       if (color) patch["style"] = { backgroundColor: color };
-      if (Object.keys(patch).length > 0) {
-        await api.updateWidget(muralId, "sticky-note", created.id, patch);
-      }
+
+      // Auto-tag with "MCP" to identify widgets created via this server
+      const tagId = await api.ensureTag(muralId, "MCP");
+      patch["tags"] = [tagId];
+
+      await api.updateWidget(muralId, "sticky-note", created.id, patch);
 
       return {
         content: [

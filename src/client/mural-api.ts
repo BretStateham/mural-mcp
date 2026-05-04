@@ -111,6 +111,54 @@ export async function updateWidget(
   );
 }
 
+// ── Tags ──
+
+interface MuralTag {
+  id: string;
+  text: string;
+}
+
+export async function listTags(muralId: string): Promise<MuralTag[]> {
+  const data = await apiRequest<{ value: MuralTag[] }>(
+    `/murals/${muralId}/tags`,
+  );
+  return data.value;
+}
+
+export async function createTag(muralId: string, text: string): Promise<MuralTag> {
+  return apiRequest<MuralTag>(`/murals/${muralId}/tags`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+/**
+ * Get or create a tag with the given text on a mural.
+ * Returns the tag ID.
+ */
+export async function ensureTag(muralId: string, text: string): Promise<string> {
+  const tags = await listTags(muralId);
+  const existing = tags.find((t) => t.text === text);
+  if (existing) return existing.id;
+  const created = await createTag(muralId, text);
+  return created.id;
+}
+
+/**
+ * Add tags to a widget via PATCH. Tags cannot be set on creation —
+ * they must be applied after the widget is created.
+ */
+export async function addTagToWidget(
+  muralId: string,
+  widgetType: string,
+  widgetId: string,
+  tagIds: string[],
+): Promise<MuralWidget> {
+  return updateWidget(muralId, widgetType, widgetId, { tags: tagIds });
+}
+
+// ── Delete ──
+
 export async function deleteWidget(
   muralId: string,
   widgetId: string,

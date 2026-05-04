@@ -6,18 +6,20 @@ import { findOpenPosition, widgetsToBounds } from "../utils/placement.js";
 export function registerWidgetWriteTools(server: McpServer): void {
   server.tool(
     "create_sticky_note",
-    "Create a sticky note on a mural at a specific position. If autoPlace is true, finds a non-overlapping position automatically.",
+    "Create a sticky note on a mural. Use parentId to place inside an area with relative coordinates. If autoPlace is true, finds a non-overlapping position automatically.",
     {
       muralId: z.string().describe("Mural ID"),
       text: z.string().describe("Sticky note text content"),
-      x: z.number().optional().describe("X position (ignored if autoPlace is true)"),
-      y: z.number().optional().describe("Y position (ignored if autoPlace is true)"),
+      x: z.number().optional().describe("X position (absolute, or relative if parentId is set)"),
+      y: z.number().optional().describe("Y position (absolute, or relative if parentId is set)"),
+      parentId: z.string().optional().describe("Parent area widget ID — coordinates become relative to this area"),
       width: z.number().optional().default(200).describe("Width in pixels"),
       height: z.number().optional().default(200).describe("Height in pixels"),
-      color: z.string().optional().describe("Background color hex (e.g. #FFF9BC)"),
+      shape: z.enum(["rectangle", "circle"]).optional().default("rectangle").describe("Sticky note shape"),
+      color: z.string().optional().describe("Background color hex (e.g. #FF69B4FF). Set via PATCH after creation."),
       autoPlace: z.boolean().optional().default(false).describe("Auto-find a non-overlapping position"),
     },
-    async ({ muralId, text, x, y, width, height, color, autoPlace }) => {
+    async ({ muralId, text, x, y, parentId, width, height, shape, color, autoPlace }) => {
       let posX = x ?? 0;
       let posY = y ?? 0;
 
@@ -30,19 +32,19 @@ export function registerWidgetWriteTools(server: McpServer): void {
       }
 
       const widget: Record<string, unknown> = {
-        type: "sticky_note",
         x: posX,
         y: posY,
         width,
         height,
+        shape,
         text,
       };
+      if (parentId) widget["parentId"] = parentId;
 
-      const created = await api.createWidget(muralId, widget);
+      const created = await api.createWidget(muralId, "sticky-note", widget);
 
-      // Mural quirk: backgroundColor must be set via update after creation
       if (color) {
-        await api.updateWidget(muralId, created.id, {
+        await api.updateWidget(muralId, "sticky-note", created.id, {
           style: { backgroundColor: color },
         });
       }
@@ -53,9 +55,11 @@ export function registerWidgetWriteTools(server: McpServer): void {
             type: "text",
             text: JSON.stringify({
               id: created.id,
+              parentId: parentId ?? null,
               x: posX,
               y: posY,
               text,
+              color: color ?? null,
               autoPlaced: autoPlace,
             }),
           },
@@ -66,81 +70,83 @@ export function registerWidgetWriteTools(server: McpServer): void {
 
   server.tool(
     "create_shape",
-    "Create a shape on a mural",
+    "Create a shape on a mural. Use parentId to place inside an area with relative coordinates.",
     {
       muralId: z.string().describe("Mural ID"),
       shape: z.string().describe("Shape type (rectangle, circle, diamond, triangle, etc.)"),
-      x: z.number().describe("X position"),
-      y: z.number().describe("Y position"),
+      x: z.number().describe("X position (absolute, or relative if parentId is set)"),
+      y: z.number().describe("Y position (absolute, or relative if parentId is set)"),
+      parentId: z.string().optional().describe("Parent area widget ID — coordinates become relative to this area"),
       width: z.number().optional().default(200).describe("Width"),
       height: z.number().optional().default(200).describe("Height"),
       text: z.string().optional().describe("Text inside shape"),
       color: z.string().optional().describe("Background color hex"),
     },
-    async ({ muralId, shape, x, y, width, height, text, color }) => {
+    async ({ muralId, shape, x, y, parentId, width, height, text, color }) => {
       const widget: Record<string, unknown> = {
-        type: "shape",
         shape,
         x,
         y,
         width,
         height,
       };
+      if (parentId) widget["parentId"] = parentId;
       if (text) widget["text"] = text;
       if (color) widget["style"] = { backgroundColor: color };
 
-      const created = await api.createWidget(muralId, widget);
+      const created = await api.createWidget(muralId, "shape", widget);
       return {
-        content: [{ type: "text", text: JSON.stringify({ id: created.id, shape, x, y }) }],
+        content: [{ type: "text", text: JSON.stringify({ id: created.id, shape, x, y, parentId: parentId ?? null }) }],
       };
     },
   );
 
   server.tool(
     "create_text_box",
-    "Create a text box on a mural",
+    "Create a text box on a mural. Use parentId to place inside an area with relative coordinates.",
     {
       muralId: z.string().describe("Mural ID"),
       text: z.string().describe("Text content"),
-      x: z.number().describe("X position"),
-      y: z.number().describe("Y position"),
+      x: z.number().describe("X position (absolute, or relative if parentId is set)"),
+      y: z.number().describe("Y position (absolute, or relative if parentId is set)"),
+      parentId: z.string().optional().describe("Parent area widget ID — coordinates become relative to this area"),
       width: z.number().optional().default(300).describe("Width"),
       height: z.number().optional().default(100).describe("Height"),
     },
-    async ({ muralId, text, x, y, width, height }) => {
-      const created = await api.createWidget(muralId, {
-        type: "text",
-        text,
-        x,
-        y,
-        width,
-        height,
-      });
+    async ({ muralId, text, x, y, parentId, width, height }) => {
+      const widget: Record<string, unknown> = { text, x, y, width, height };
+      if (parentId) widget["parentId"] = parentId;
+
+      const created = await api.createWidget(muralId, "text", widget);
       return {
-        content: [{ type: "text", text: JSON.stringify({ id: created.id, x, y, text }) }],
+        content: [{ type: "text", text: JSON.stringify({ id: created.id, x, y, text, parentId: parentId ?? null }) }],
       };
     },
   );
 
   server.tool(
     "update_widget",
-    "Update an existing widget (position, text, style, etc.)",
+    "Update an existing widget (position, text, style, etc.). Requires widgetType for the type-specific PATCH endpoint.",
     {
       muralId: z.string().describe("Mural ID"),
       widgetId: z.string().describe("Widget ID to update"),
+      widgetType: z.string().describe("Widget type slug: sticky-note, shape, text, area, icon, image"),
       x: z.number().optional().describe("New X position"),
       y: z.number().optional().describe("New Y position"),
       width: z.number().optional().describe("New width"),
       height: z.number().optional().describe("New height"),
       text: z.string().optional().describe("New text content"),
+      backgroundColor: z.string().optional().describe("Background color hex (e.g. #FF69B4FF)"),
     },
-    async ({ muralId, widgetId, ...updates }) => {
-      // Filter out undefined values
+    async ({ muralId, widgetId, widgetType, backgroundColor, ...updates }) => {
       const patch: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(updates)) {
         if (value !== undefined) patch[key] = value;
       }
-      const updated = await api.updateWidget(muralId, widgetId, patch);
+      if (backgroundColor) {
+        patch["style"] = { backgroundColor };
+      }
+      const updated = await api.updateWidget(muralId, widgetType, widgetId, patch);
       return {
         content: [{ type: "text", text: JSON.stringify({ id: updated.id, ...patch }) }],
       };

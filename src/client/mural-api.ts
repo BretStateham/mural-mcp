@@ -21,7 +21,12 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
     throw new Error(`Mural API ${response.status}: ${body}`);
   }
 
-  return response.json() as Promise<T>;
+  const json = await response.json() as Record<string, unknown>;
+  // Mural API wraps single-object responses in { value: ... }
+  if ("value" in json && !Array.isArray(json["value"])) {
+    return json["value"] as T;
+  }
+  return json as T;
 }
 
 // ── Workspaces ──
@@ -78,9 +83,12 @@ export async function getWidget(muralId: string, widgetId: string): Promise<Mura
 
 export async function createWidget(
   muralId: string,
+  widgetType: string,
   widget: Record<string, unknown>,
 ): Promise<MuralWidget> {
-  return apiRequest<MuralWidget>(`/murals/${muralId}/widgets`, {
+  // Mural API uses type-specific endpoints: /widgets/sticky-note, /widgets/shape, etc.
+  const typePath = widgetType.replace(/\s+/g, "-").replace(/_/g, "-");
+  return apiRequest<MuralWidget>(`/murals/${muralId}/widgets/${typePath}`, {
     method: "POST",
     body: JSON.stringify(widget),
   });
@@ -88,20 +96,34 @@ export async function createWidget(
 
 export async function updateWidget(
   muralId: string,
+  widgetType: string,
   widgetId: string,
   updates: Record<string, unknown>,
 ): Promise<MuralWidget> {
-  return apiRequest<MuralWidget>(`/murals/${muralId}/widgets/${widgetId}`, {
-    method: "PATCH",
-    body: JSON.stringify(updates),
-  });
+  // Mural PATCH requires type-specific endpoints: /widgets/sticky-note/{id}, /widgets/shape/{id}, etc.
+  const typePath = widgetType.replace(/\s+/g, "-").replace(/_/g, "-");
+  return apiRequest<MuralWidget>(
+    `/murals/${muralId}/widgets/${typePath}/${widgetId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    },
+  );
 }
 
 export async function deleteWidget(
   muralId: string,
   widgetId: string,
 ): Promise<void> {
-  await apiRequest<void>(`/murals/${muralId}/widgets/${widgetId}`, {
+  const token = await getAccessToken();
+  const url = `${API_BASE}/murals/${muralId}/widgets/${widgetId}`;
+  const response = await fetch(url, {
     method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
   });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Mural API ${response.status}: ${body}`);
+  }
+  // DELETE returns empty body — no JSON to parse
 }

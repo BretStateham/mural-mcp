@@ -9,6 +9,9 @@ export interface MuralWidget {
   height: number;
   text?: string;
   title?: string;
+  htmlText?: string;
+  parentId?: string | null;
+  shape?: string;
   style?: Record<string, unknown>;
   [key: string]: unknown;
 }

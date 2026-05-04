@@ -73,6 +73,25 @@ This opens your browser for Mural OAuth consent. After you authorize, tokens are
 
 Add the server to your MCP client's configuration file.
 
+**GitHub Copilot in VS Code** (`.vscode/mcp.json` in your workspace):
+
+```json
+{
+  "servers": {
+    "mural": {
+      "command": "node",
+      "args": ["/absolute/path/to/mural-mcp/build/index.js"],
+      "env": {
+        "MURAL_CLIENT_ID": "your_client_id",
+        "MURAL_CLIENT_SECRET": "your_client_secret"
+      }
+    }
+  }
+}
+```
+
+> **Tip:** VS Code uses a `servers` key (not `mcpServers`), and the file goes in `.vscode/mcp.json` within your workspace folder. After saving, VS Code should detect the server automatically — you can verify by opening the Copilot Chat panel and checking for the Mural tools.
+
 **GitHub Copilot CLI** (`~/.copilot/mcp-config.json`):
 
 ```json
